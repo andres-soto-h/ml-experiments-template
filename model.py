@@ -1,10 +1,10 @@
-
 """
 Here we code what our model is. It may include all of feature engineering.
 """
 import typing as t
 
-from sklearn.base import BaseEstimator, TransformerMixin
+import numpy as np
+from sklearn.base import BaseEstimator, RegressorMixin, TransformerMixin
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.linear_model import LinearRegression
@@ -13,6 +13,7 @@ from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
 
 EstimatorConfig = t.List[t.Dict[str, t.Any]]
+
 
 def build_estimator(config: EstimatorConfig):
     estimator_mapping = get_estimator_mapping()
@@ -31,7 +32,7 @@ def get_estimator_mapping():
         "random-forest-regressor": RandomForestRegressor,
         "linear-regressor": LinearRegression,
         "age-extractor": AgeExtractor,
-        "column-transformer": CustomColumnTransformer,
+        "ignore-and-encode-transformer": IgnoreAndEncodeTransformer,
     }
 
 
@@ -47,7 +48,7 @@ class AgeExtractor(BaseEstimator, TransformerMixin):
         return X
 
 
-class CustomColumnTransformer(BaseEstimator, TransformerMixin):
+class IgnoreAndEncodeTransformer(BaseEstimator, TransformerMixin):
     _categorical_columns = (
         "MSSubClass,MSZoning,Alley,LotShape,LandContour,Utilities,LotConfig,LandSlope,"
         + "Neighborhood,Condition1,Condition2,BldgType,HouseStyle,RoofStyle,RoofMatl,"
@@ -70,17 +71,36 @@ class CustomColumnTransformer(BaseEstimator, TransformerMixin):
 
     _ignored_columns = "YrSold,YearBuilt,YearRemodAdd,GarageYrBlt".split(",")
 
+    _ordinal_encoder_categories = (
+        ("Street", np.array(["Grvl", "Pave"])),
+        ("CentralAir", np.array(["N", "Y"])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+        ("", np.array([])),
+    )
+
     def __init__(self):
         self._column_transformer = ColumnTransformer(
             transformers=[
                 ("droper", "drop", type(self)._ignored_columns),
-                ("binarizer", OrdinalEncoder(), type(self)._binary_columns),
                 (
-                    "one_hot_encoder",
-                    OneHotEncoder(handle_unknown="ignore", sparse=False),
-                    type(self)._categorical_columns,
+                    "encoder",
+                    OrdinalEncoder(categories=type(self)._ordinal_encoder_categories),
+                    type(self)._binary_columns + type(self)._categorical_columns,
                 ),
-                ("scaler", StandardScaler(), type(self)._float_columns),
             ],
             remainder="drop",
         )
@@ -91,3 +111,13 @@ class CustomColumnTransformer(BaseEstimator, TransformerMixin):
 
     def transform(self, X):
         return self._column_transformer.transform(X)
+
+
+class ModePerNeighborBaseline(BaseEstimator, RegressorMixin):
+    def fit(self, X, y):
+        """Computes the mode of the price per neighbor on training data."""
+        raise NotImplementedError
+
+    def predict(self, X):
+        """Predicts the mode computed in the fit method."""
+        raise NotImplementedError
