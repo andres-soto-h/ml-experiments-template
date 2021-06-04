@@ -1,5 +1,14 @@
 estimator:
-  - name: average-per-neighborhood-baseline
+  - name: age-extractor
+    params: {}
+  - name: categorical-encoder
+    params:
+      one_hot: true
+      force_dense_array: true
+  - name: standard-scaler
+    params: {}
+  - name: linear-regressor
+    params: {}
 
 data:
   filepath: ./dataset.csv
